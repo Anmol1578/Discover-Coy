@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id                  String   @id
+  name                String
+  age                 Int
+  city                String
+  college             String
+  bio                 String
+  photoUrl            String
+  interests           String
+  hasLikedCurrentUser Boolean  @default(false)
+  swipe               Swipe?
+  match               Match?
+}
+
+model Swipe {
+  id        String   @id @default(uuid())
+  profileId String   @unique
+  direction String
+  createdAt DateTime @default(now())
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  profileId String   @unique
+  matchedAt DateTime @default(now())
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
