@@ -59,12 +59,14 @@ export function AppShell() {
   };
 
   return (
-    <div className="w-full h-[100dvh] bg-[#0D0D0F] flex justify-center">
-      {/* Shell: Centered max-w-[430px] on desktop, full-bleed on mobile */}
-      <div className="w-full max-w-[430px] h-[100dvh] flex flex-col overflow-hidden border-x border-[#27272A] relative bg-[#0D0D0F]">
+    <div className="w-full h-[100dvh] bg-[#ECE9F2] flex items-center justify-center sm:p-4">
+      {/* Shell: Centered max-w-[430px] on desktop with Coy 2px border and hard shadow, full-bleed on mobile */}
+      <div className="w-full max-w-[430px] h-[100dvh] sm:h-[880px] sm:max-h-[96vh] flex flex-col overflow-hidden sm:rounded-[36px] sm:border-2 sm:border-[#15121D] sm:shadow-coy-xl relative bg-[#F6F4FA]">
         {/* Tab Content Views */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
-          {activeTab === "home" && <HomeTab />}
+          {activeTab === "home" && (
+            <HomeTab onGoToDiscover={() => setActiveTab("discover")} />
+          )}
 
           {/* Keep Discover mounted to preserve card stack state across tab switching */}
           <div
@@ -98,8 +100,8 @@ export function AppShell() {
 
         {/* Mutual Match Modal */}
         <MatchModal
-          isOpen={matchedProfile !== null}
           match={matchedProfile}
+          isOpen={matchedProfile !== null}
           onClose={handleCloseModal}
           onViewMatches={handleViewMatches}
         />

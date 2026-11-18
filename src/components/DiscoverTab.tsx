@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { X, Heart, RotateCcw, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Heart, RotateCcw, Sparkles, ShieldCheck } from "lucide-react";
 import { SwipeCard } from "./SwipeCard";
 import { PublicProfile } from "@/types";
 
@@ -10,6 +11,13 @@ interface DiscoverTabProps {
   isModalOpen: boolean;
   onMatch: (matchedProfile: PublicProfile) => void;
   onRefreshMatches: () => void;
+}
+
+interface FloatingHeart {
+  id: number;
+  xOffset: number;
+  yOffset: number;
+  scale: number;
 }
 
 export function DiscoverTab({
@@ -23,8 +31,8 @@ export function DiscoverTab({
   const [isResetting, setIsResetting] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [triggerDirection, setTriggerDirection] = useState<"LIKE" | "PASS" | null>(null);
+  const [floatingHearts, setFloatingHearts] = useState<FloatingHeart[]>([]);
 
-  // Load feed from GET /api/feed on mount
   const fetchFeed = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -44,18 +52,31 @@ export function DiscoverTab({
     fetchFeed();
   }, [fetchFeed]);
 
-  // Handle swipe completion (both drag and button/keyboard)
+  const triggerHeartBurst = () => {
+    const burst = Array.from({ length: 7 }).map((_, i) => ({
+      id: Date.now() + i,
+      xOffset: (Math.random() - 0.5) * 120,
+      yOffset: -80 - Math.random() * 80,
+      scale: 0.6 + Math.random() * 0.7,
+    }));
+    setFloatingHearts((prev) => [...prev, ...burst]);
+    setTimeout(() => {
+      setFloatingHearts((prev) => prev.filter((h) => !burst.some((b) => b.id === h.id)));
+    }, 900);
+  };
+
   const handleSwipe = useCallback(
     (direction: "LIKE" | "PASS") => {
       if (feed.length === 0) return;
 
       const swipedProfile = feed[0];
+      if (direction === "LIKE") {
+        triggerHeartBurst();
+      }
 
-      // Optimistically advance the deck
       setFeed((prev) => prev.slice(1));
       setTriggerDirection(null);
 
-      // Background API call: POST /api/swipe
       fetch("/api/swipe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,10 +86,7 @@ export function DiscoverTab({
         }),
       })
         .then(async (res) => {
-          if (res.status === 409) {
-            // Already swiped - ignore gracefully
-            return;
-          }
+          if (res.status === 409) return;
           if (res.ok) {
             const data = await res.json();
             if (data.matched && data.match) {
@@ -84,16 +102,17 @@ export function DiscoverTab({
     [feed, onMatch, onRefreshMatches]
   );
 
-  // Programmatic swipe via buttons or arrow keys
   const handleProgrammaticSwipe = useCallback(
     (direction: "LIKE" | "PASS") => {
       if (isAnimating || feed.length === 0 || !isActive || isModalOpen) return;
+      if (direction === "LIKE") {
+        triggerHeartBurst();
+      }
       setTriggerDirection(direction);
     },
     [isAnimating, feed.length, isActive, isModalOpen]
   );
 
-  // Desktop keyboard shortcuts (ArrowLeft = PASS, ArrowRight = LIKE)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isActive || isModalOpen || isAnimating || feed.length === 0) return;
@@ -111,7 +130,6 @@ export function DiscoverTab({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isActive, isModalOpen, isAnimating, feed.length, handleProgrammaticSwipe]);
 
-  // Demo reset helper
   const handleReset = async () => {
     setIsResetting(true);
     try {
@@ -131,54 +149,56 @@ export function DiscoverTab({
   const nextProfile = feed[1];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0D0D0F] overflow-hidden select-none">
-      {/* Top Header */}
-      <div className="px-5 pt-4 pb-2 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-          <h1 className="text-xl font-bold tracking-tight text-white">
-            Discover
-          </h1>
+    <div className="flex-1 flex flex-col h-full bg-[#F6F4FA] overflow-hidden select-none relative">
+      <div className="px-5 pt-3.5 pb-2.5 flex items-center justify-between shrink-0 bg-[#FFE4EF] border-b-2 border-[#15121D]">
+        <div className="flex items-center gap-2.5">
+          <img
+            src="/coy-wordmark.svg"
+            alt="Coy"
+            className="h-7 w-auto block select-none pointer-events-none"
+          />
+          <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FFE45C] border-2 border-[#15121D] text-[11px] font-black shadow-[1.5px_1.5px_0_#15121D] -rotate-1">
+            <ShieldCheck className="w-3 h-3 text-[#15121D]" />
+            100% private
+          </span>
         </div>
-        <span className="text-xs text-neutral-500 font-medium">
-          {feed.length > 0 ? `${feed.length} profiles left` : "Deck empty"}
+
+        <span className="px-2.5 py-1 rounded-full bg-[#CBF4E0] border-2 border-[#15121D] text-[11px] font-black text-[#15121D] shadow-[2px_2px_0_#15121D]">
+          {feed.length > 0 ? `${feed.length} profiles` : "Deck empty"}
         </span>
       </div>
 
-      {/* Card Arena */}
-      <div className="flex-1 relative mx-3 my-2 flex items-center justify-center">
+      <div className="flex-1 relative mx-4 my-3 flex items-center justify-center">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center gap-3 text-neutral-500">
-            <div className="w-8 h-8 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs font-medium">Loading profiles...</p>
+          <div className="flex flex-col items-center justify-center gap-3">
+            <div className="w-10 h-10 border-4 border-[#FF3D81] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs font-bold text-[#6D6979]">Loading crush feed...</p>
           </div>
         ) : feed.length === 0 ? (
-          /* Empty State */
-          <div className="w-full h-full max-h-[540px] rounded-2xl bg-[#18181B] border border-[#27272A] p-6 flex flex-col items-center justify-center text-center shadow-lg">
-            <div className="w-16 h-16 rounded-full bg-[#27272A] flex items-center justify-center text-rose-500 mb-4 shadow-inner">
-              <Sparkles className="w-8 h-8" />
+          <div className="w-full h-full max-h-[520px] rounded-[28px] bg-white border-2 border-[#15121D] p-6 flex flex-col items-center justify-center text-center shadow-coy-lg">
+            <div className="w-18 h-18 rounded-full bg-[#FFE4EF] border-2 border-[#15121D] flex items-center justify-center text-[#FF3D81] mb-4 shadow-coy p-4">
+              <Sparkles className="w-9 h-9 fill-[#FF3D81]" />
             </div>
-            <h3 className="text-xl font-bold text-white tracking-tight">
-              You&apos;ve seen everyone for now
+            <h3 className="text-2xl font-black text-[#15121D] tracking-tight">
+              You&apos;ve seen everyone!
             </h3>
-            <p className="text-xs text-neutral-400 mt-2 max-w-xs leading-relaxed">
-              Check back later for new profiles, or reset the demo deck to test swiping again.
+            <p className="text-xs text-[#6D6979] font-medium mt-2 max-w-xs leading-relaxed">
+              You&apos;re all caught up. No one knows you swiped unless they also add you secretly. Reset below to test swiping again.
             </p>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.04, y: -2 }}
+              whileTap={{ scale: 0.95, y: 2 }}
               onClick={handleReset}
               disabled={isResetting}
-              className="mt-6 px-5 py-2.5 rounded-xl bg-[#27272A] hover:bg-[#323236] text-neutral-200 text-xs font-semibold flex items-center gap-2 border border-[#3F3F46] transition-all active:scale-95 disabled:opacity-50"
+              className="mt-6 px-6 py-3 rounded-full bg-[#FF3D81] text-white text-xs font-black flex items-center gap-2 border-2 border-[#15121D] shadow-coy active:shadow-coy-active transition-all disabled:opacity-50"
             >
-              <RotateCcw
-                className={`w-3.5 h-3.5 ${isResetting ? "animate-spin" : ""}`}
-              />
+              <RotateCcw className={`w-4 h-4 ${isResetting ? "animate-spin" : ""}`} />
               {isResetting ? "Resetting..." : "Reset demo profiles"}
-            </button>
+            </motion.button>
           </div>
         ) : (
-          /* Card Stack */
-          <div className="relative w-full h-full max-h-[580px]">
+          <div className="relative w-full h-full max-h-[560px]">
             {nextProfile && (
               <SwipeCard
                 key={nextProfile.id}
@@ -206,27 +226,65 @@ export function DiscoverTab({
         )}
       </div>
 
-      {/* Action Buttons (Pass ✕ and Like ♥) */}
-      <div className="px-6 py-3 flex items-center justify-center gap-6 shrink-0">
-        <button
+      <AnimatePresence>
+        {floatingHearts.map((h) => (
+          <motion.div
+            key={h.id}
+            initial={{ opacity: 1, scale: 0.4, x: 0, y: 0 }}
+            animate={{
+              opacity: 0,
+              scale: h.scale,
+              x: h.xOffset,
+              y: h.yOffset,
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.85, ease: "easeOut" }}
+            className="absolute bottom-20 left-1/2 pointer-events-none z-50 -translate-x-1/2"
+          >
+            <div className="w-8 h-8 rounded-full bg-[#FF3D81] border-2 border-[#15121D] flex items-center justify-center text-white shadow-coy-sm">
+              <Heart className="w-4 h-4 fill-white stroke-[2.5]" />
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      <div className="px-6 py-3 flex items-center justify-center gap-7 shrink-0 bg-[#FFE1CF] border-t-2 border-[#15121D]">
+        <motion.button
+          whileHover={{ scale: 1.08, rotate: -6, y: -2 }}
+          whileTap={{ scale: 0.9, rotate: 0, y: 2 }}
           onClick={() => handleProgrammaticSwipe("PASS")}
           disabled={isAnimating || feed.length === 0}
           title="Pass (Left arrow)"
           aria-label="Pass profile"
-          className="w-14 h-14 rounded-full bg-[#18181B] border border-[#27272A] flex items-center justify-center text-neutral-400 hover:text-white hover:border-rose-500/50 hover:bg-[#222226] shadow-lg transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none"
+          className="w-14 h-14 rounded-full bg-white border-2 border-[#15121D] flex items-center justify-center text-[#15121D] hover:bg-[#FFE1CF] shadow-coy active:shadow-coy-active transition-all disabled:opacity-40 disabled:pointer-events-none"
         >
-          <X className="w-7 h-7 stroke-[2.2]" />
-        </button>
+          <X className="w-7 h-7 stroke-[2.8]" />
+        </motion.button>
 
-        <button
+        <motion.button
+          whileHover={{ scale: 1.1, rotate: 180 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ duration: 0.2 }}
+          onClick={handleReset}
+          disabled={isResetting}
+          title="Reset Demo Profiles"
+          aria-label="Reset demo profiles"
+          className="w-10 h-10 rounded-full bg-[#FFE45C] border-2 border-[#15121D] flex items-center justify-center text-[#15121D] shadow-coy-sm active:shadow-coy-active"
+        >
+          <RotateCcw className={`w-4 h-4 stroke-[2.5] ${isResetting ? "animate-spin" : ""}`} />
+        </motion.button>
+
+        <motion.button
+          whileHover={{ scale: 1.1, rotate: 6, y: -3 }}
+          whileTap={{ scale: 0.88, rotate: 0, y: 3 }}
           onClick={() => handleProgrammaticSwipe("LIKE")}
           disabled={isAnimating || feed.length === 0}
           title="Like (Right arrow)"
           aria-label="Like profile"
-          className="w-14 h-14 rounded-full bg-[#18181B] border border-[#27272A] flex items-center justify-center text-rose-500 hover:text-rose-400 hover:border-rose-500 hover:bg-rose-500/10 shadow-lg transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none"
+          className="w-16 h-16 rounded-full bg-[#FF3D81] border-2 border-[#15121D] flex items-center justify-center text-white shadow-coy-lg active:shadow-coy-active transition-all disabled:opacity-40 disabled:pointer-events-none relative group"
         >
-          <Heart className="w-7 h-7 fill-rose-500/20 stroke-[2.2]" />
-        </button>
+          <Heart className="w-8 h-8 fill-white stroke-[2.2] group-hover:scale-110 transition-transform" />
+        </motion.button>
       </div>
     </div>
   );

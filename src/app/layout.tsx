@@ -9,8 +9,11 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Spark | Discover & Matches",
-  description: "A private swipe-based discover and match app",
+  title: "Coy: Discover & Crush Matching",
+  description: "Find out if your crush likes you back. 100% private, mutual matches only.",
+  icons: {
+    icon: "/coy-wordmark.svg",
+  },
 };
 
 export default function RootLayout({
@@ -19,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-[#0D0D0F] text-neutral-100 min-h-screen antialiased font-sans">
+    <html lang="en">
+      <body className="bg-[#F6F4FA] text-[#15121D] min-h-screen antialiased font-sans">
         {children}
       </body>
     </html>

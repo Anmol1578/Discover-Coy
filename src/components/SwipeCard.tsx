@@ -8,7 +8,7 @@ import {
   useAnimation,
   PanInfo,
 } from "framer-motion";
-import { MapPin, GraduationCap } from "lucide-react";
+import { MapPin, GraduationCap, Heart, X, Sparkles } from "lucide-react";
 import { PublicProfile } from "@/types";
 
 interface SwipeCardProps {
@@ -17,10 +17,19 @@ interface SwipeCardProps {
   onSwipe: (direction: "LIKE" | "PASS") => void;
   isAnimating: boolean;
   setIsAnimating: (animating: boolean) => void;
-  // Trigger programmatic swipe (e.g. from buttons or keys)
   triggerDirection?: "LIKE" | "PASS" | null;
   onAnimationComplete?: () => void;
 }
+
+// Pastel color palette for interest tags matching getcoy.com
+const TAG_COLORS = [
+  "bg-[#FFE45C] text-[#15121D]", // yellow
+  "bg-[#CBF4E0] text-[#15121D]", // mint
+  "bg-[#D7ECFF] text-[#15121D]", // sky
+  "bg-[#FFE1CF] text-[#15121D]", // peach
+  "bg-[#E7E0FF] text-[#15121D]", // lilac
+  "bg-[#FFE4EF] text-[#D81E63]", // soft pink
+];
 
 export function SwipeCard({
   profile,
@@ -34,24 +43,27 @@ export function SwipeCard({
   const controls = useAnimation();
   const x = useMotionValue(0);
 
-  // Rotation tied to horizontal drag offset
-  const rotate = useTransform(x, [-200, 200], [-18, 18]);
+  // Dynamic rotation linked to drag distance
+  const rotate = useTransform(x, [-240, 240], [-18, 18]);
 
-  // Stamp opacities
-  const likeOpacity = useTransform(x, [20, 100], [0, 1]);
-  const passOpacity = useTransform(x, [-100, -20], [1, 0]);
+  // Stamp opacities & scale for juicy feedback
+  const likeOpacity = useTransform(x, [25, 110], [0, 1]);
+  const likeScale = useTransform(x, [25, 120], [0.8, 1.12]);
 
-  // Handle programmatic swipe trigger (buttons or keyboard)
+  const passOpacity = useTransform(x, [-110, -25], [1, 0]);
+  const passScale = useTransform(x, [-120, -25], [1.12, 0.8]);
+
+  // Handle programmatic swipe trigger (e.g., buttons or arrow keys)
   useEffect(() => {
     if (isTop && triggerDirection && !isAnimating) {
       setIsAnimating(true);
-      const exitX = triggerDirection === "LIKE" ? 500 : -500;
+      const exitX = triggerDirection === "LIKE" ? 550 : -550;
       controls
         .start({
           x: exitX,
           opacity: 0,
-          rotate: triggerDirection === "LIKE" ? 20 : -20,
-          transition: { duration: 0.28, ease: "easeOut" },
+          rotate: triggerDirection === "LIKE" ? 22 : -22,
+          transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] },
         })
         .then(() => {
           onSwipe(triggerDirection);
@@ -75,17 +87,17 @@ export function SwipeCard({
   ) => {
     if (isAnimating) return;
 
-    const threshold = 100;
+    const threshold = 110;
     const velocityThreshold = 450;
 
     if (info.offset.x > threshold || info.velocity.x > velocityThreshold) {
       // Swiped Right -> LIKE
       setIsAnimating(true);
       await controls.start({
-        x: 500,
+        x: 550,
         opacity: 0,
-        rotate: 20,
-        transition: { duration: 0.24, ease: "easeOut" },
+        rotate: 22,
+        transition: { duration: 0.26, ease: "easeOut" },
       });
       onSwipe("LIKE");
       setIsAnimating(false);
@@ -97,54 +109,63 @@ export function SwipeCard({
       // Swiped Left -> PASS
       setIsAnimating(true);
       await controls.start({
-        x: -500,
+        x: -550,
         opacity: 0,
-        rotate: -20,
-        transition: { duration: 0.24, ease: "easeOut" },
+        rotate: -22,
+        transition: { duration: 0.26, ease: "easeOut" },
       });
       onSwipe("PASS");
       setIsAnimating(false);
       onAnimationComplete?.();
     } else {
-      // Return to center
+      // Snap smoothly back to center with spring
       controls.start({
         x: 0,
         rotate: 0,
-        transition: { type: "spring", stiffness: 400, damping: 25 },
+        transition: { type: "spring", stiffness: 450, damping: 28 },
       });
     }
   };
 
   if (!isTop) {
-    // Background card: scaled slightly behind the top card
+    // Background card: sits neatly stacked underneath with slight scale and hard shadow
     return (
       <div
-        className="absolute inset-0 rounded-2xl overflow-hidden bg-[#18181B] border border-[#27272A] shadow-lg pointer-events-none select-none transition-transform duration-300"
+        className="absolute inset-0 rounded-[28px] overflow-hidden bg-[#FFFFFF] border-2 border-[#15121D] shadow-coy pointer-events-none select-none transition-all duration-300 flex flex-col"
         style={{
-          transform: "scale(0.95) translateY(10px)",
-          opacity: 0.7,
+          transform: "scale(0.95) translateY(12px)",
+          opacity: 0.85,
         }}
       >
-        <img
-          src={profile.photoUrl}
-          alt={profile.name}
-          className="w-full h-full object-cover select-none pointer-events-none"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0F] via-[#0D0D0F]/80 to-transparent top-[35%]" />
-        <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-          <h2 className="text-2xl font-bold text-white tracking-tight">
-            {profile.name},{" "}
-            <span className="font-normal text-neutral-300">{profile.age}</span>
-          </h2>
-          <div className="flex items-center gap-3 text-xs text-neutral-400 mt-1">
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" />
-              {profile.city}
-            </span>
-            <span className="flex items-center gap-1 truncate">
-              <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-              {profile.college}
-            </span>
+        {/* Photo Container */}
+        <div className="relative w-full h-[60%] bg-[#F6F4FA] overflow-hidden border-b-2 border-[#15121D]">
+          <img
+            src={profile.photoUrl}
+            alt={profile.name}
+            className="w-full h-full object-cover select-none pointer-events-none"
+          />
+        </div>
+
+        {/* Card info content */}
+        <div className="p-4 flex-1 flex flex-col justify-between bg-white">
+          <div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black text-[#15121D] tracking-tight">
+                {profile.name},{" "}
+                <span className="font-semibold text-[#6D6979]">{profile.age}</span>
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-[#6D6979] mt-1 font-medium">
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-[#FF3D81]" />
+                {profile.city}
+              </span>
+              <span>•</span>
+              <span className="truncate flex items-center gap-1">
+                <GraduationCap className="w-3.5 h-3.5 text-[#15121D]" />
+                {profile.college}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -153,77 +174,100 @@ export function SwipeCard({
 
   return (
     <motion.div
-      className="absolute inset-0 rounded-2xl overflow-hidden bg-[#18181B] border border-[#27272A] shadow-2xl cursor-grab active:cursor-grabbing select-none touch-none z-10"
+      className="absolute inset-0 rounded-[28px] overflow-hidden bg-[#FFFFFF] border-2 border-[#15121D] shadow-coy-lg cursor-grab active:cursor-grabbing select-none touch-none z-10 flex flex-col"
       style={{ x, rotate }}
       drag={isAnimating ? false : "x"}
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.7}
+      dragElastic={0.65}
       animate={controls}
       onDragEnd={handleDragEnd}
     >
-      {/* LIKE Stamp */}
+      {/* LIKE Stamp: Coy Signature Pink Sticker */}
       <motion.div
-        style={{ opacity: likeOpacity }}
-        className="absolute top-6 left-6 z-20 pointer-events-none -rotate-12 border-2 border-emerald-400 text-emerald-400 px-3.5 py-1 rounded-md text-xl font-extrabold tracking-widest uppercase bg-emerald-950/30 backdrop-blur-sm"
+        style={{ opacity: likeOpacity, scale: likeScale }}
+        className="absolute top-5 left-5 z-30 pointer-events-none -rotate-12 bg-[#FF3D81] text-white border-2 border-[#15121D] px-4 py-1.5 rounded-full text-lg font-black tracking-wider uppercase shadow-coy flex items-center gap-1.5"
       >
+        <Heart className="w-5 h-5 fill-white stroke-[2.5]" />
         LIKE
       </motion.div>
 
-      {/* PASS Stamp */}
+      {/* PASS Stamp: Coy Bold Dark Sticker */}
       <motion.div
-        style={{ opacity: passOpacity }}
-        className="absolute top-6 right-6 z-20 pointer-events-none rotate-12 border-2 border-rose-500 text-rose-500 px-3.5 py-1 rounded-md text-xl font-extrabold tracking-widest uppercase bg-rose-950/30 backdrop-blur-sm"
+        style={{ opacity: passOpacity, scale: passScale }}
+        className="absolute top-5 right-5 z-30 pointer-events-none rotate-12 bg-[#15121D] text-[#FFE45C] border-2 border-[#15121D] px-4 py-1.5 rounded-full text-lg font-black tracking-wider uppercase shadow-coy flex items-center gap-1.5"
       >
+        <X className="w-5 h-5 stroke-[3]" />
         PASS
       </motion.div>
 
-      {/* Full-bleed photo (Plain <img> as required for remote SVGs) */}
-      <div className="relative w-full h-full bg-[#18181B]">
+      {/* Top Floating Badge (Coy-style sticker) */}
+      <div className="absolute top-3 left-4 z-20 pointer-events-none">
+        <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#FFE45C] text-[#15121D] text-xs font-black rounded-full border-2 border-[#15121D] shadow-coy-sm -rotate-2">
+          <Sparkles className="w-3 h-3 fill-[#15121D]" />
+          Crush Candidate
+        </span>
+      </div>
+
+      {/* Photo area */}
+      <div className="relative w-full h-[58%] bg-[#F6F4FA] overflow-hidden border-b-2 border-[#15121D]">
         <img
           src={profile.photoUrl}
           alt={profile.name}
           className="w-full h-full object-cover select-none pointer-events-none"
         />
 
-        {/* Bottom gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0F] via-[#0D0D0F]/85 to-transparent top-[32%] pointer-events-none" />
+        {/* Subtle decorative Coy wave pattern or light gradient at bottom */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent pointer-events-none" />
+      </div>
 
-        {/* Card info content */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 z-10 pointer-events-none">
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-2xl font-bold text-white tracking-tight">
+      {/* Bottom Profile Information */}
+      <div className="p-4 flex-1 flex flex-col justify-between bg-white overflow-hidden pointer-events-none">
+        <div>
+          {/* Name & Age Header */}
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-2xl font-black text-[#15121D] tracking-tight">
               {profile.name}
+              <span className="text-lg font-bold text-[#6D6979] ml-2">
+                {profile.age}
+              </span>
             </h2>
-            <span className="text-xl font-medium text-neutral-300">
-              {profile.age}
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#E7E0FF] border-2 border-[#15121D] text-[#15121D]">
+              Secret List
             </span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-neutral-300 mt-1 font-medium">
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-neutral-400" />
+          {/* Location & College info with Coy styling */}
+          <div className="flex items-center gap-2.5 text-xs text-[#6D6979] mt-1 font-semibold">
+            <span className="flex items-center gap-1 text-[#15121D]">
+              <MapPin className="w-3.5 h-3.5 text-[#FF3D81] shrink-0" />
               {profile.city}
             </span>
-            <span className="flex items-center gap-1 truncate">
-              <GraduationCap className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+            <span>•</span>
+            <span className="flex items-center gap-1 truncate text-[#15121D]">
+              <GraduationCap className="w-3.5 h-3.5 text-[#15121D] shrink-0" />
               {profile.college}
             </span>
           </div>
 
-          <p className="text-xs text-neutral-200 mt-2.5 line-clamp-3 leading-relaxed">
-            {profile.bio}
+          {/* Short Bio */}
+          <p className="text-xs text-[#15121D] font-medium mt-2 line-clamp-2 leading-relaxed bg-[#F6F4FA] p-2.5 rounded-xl border border-[#ECE9F2]">
+            &ldquo;{profile.bio}&rdquo;
           </p>
+        </div>
 
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {profile.interests.map((interest) => (
+        {/* Interests: Playful pastel pills matching Coy */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {profile.interests.map((interest, idx) => {
+            const colorClass = TAG_COLORS[idx % TAG_COLORS.length];
+            return (
               <span
                 key={interest}
-                className="px-2.5 py-1 text-[11px] font-medium rounded-full bg-[#27272A]/90 text-neutral-200 border border-[#27272A]"
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-full border-[1.5px] border-[#15121D] shadow-[1.5px_1.5px_0_#15121D] ${colorClass}`}
               >
                 {interest}
               </span>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
     </motion.div>
