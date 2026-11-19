@@ -1,9 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isMutualMatch, toPublicProfile } from "@/lib/profiles";
+import {
+  isStaticMode,
+  getStaticProfileById,
+  getSession,
+  saveSession,
+} from "@/lib/static-store";
 import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Handles swipe operations using the static data store & session cookies.
+ */
+function handleStaticSwipe(
+  req: NextRequest,
+  profileId: string,
+  direction: "LIKE" | "PASS"
+): NextResponse {
+  const profile = getStaticProfileById(profileId);
+  if (!profile) {
+    return NextResponse.json(
+      { error: "Profile not found" },
+      { status: 404 }
+    );
+  }
+
+  const session = getSession(req);
+  if (session.swipes[profileId]) {
+    return NextResponse.json(
+      { error: "Profile already swiped" },
+      { status: 409 }
+    );
+  }
+
+  session.swipes[profileId] = direction;
+  const matched = isMutualMatch(direction, profile.hasLikedCurrentUser);
+
+  let res: NextResponse;
+  if (matched) {
+    const matchedAt = new Date().toISOString();
+    session.matches.push({ profileId, matchedAt });
+    res = NextResponse.json({
+      matched: true,
+      match: {
+        ...toPublicProfile(profile),
+        matchedAt,
+      },
+    });
+  } else {
+    res = NextResponse.json({ matched: false });
+  }
+
+  saveSession(res, session);
+  return res;
+}
 
 /**
  * POST /api/swipe
@@ -39,10 +91,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Verify profile exists
-  const profile = await prisma.profile.findUnique({
-    where: { id: profileId },
-  });
+  // --- Static Data Mode (e.g. on Vercel deployment) ---
+  if (isStaticMode()) {
+    return handleStaticSwipe(req, profileId, direction);
+  }
+
+  // --- Database Mode (e.g. Vitest integration tests / local Prisma SQLite) ---
+  let profile;
+  try {
+    profile = await prisma.profile.findUnique({
+      where: { id: profileId },
+    });
+  } catch (error) {
+    console.warn("Prisma query failed, falling back to static swipe:", error);
+    return handleStaticSwipe(req, profileId, direction);
+  }
 
   if (!profile) {
     return NextResponse.json(

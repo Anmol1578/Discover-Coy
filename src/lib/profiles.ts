@@ -23,11 +23,7 @@ export interface PublicMatch extends PublicProfile {
   matchedAt: Date | string;
 }
 
-/**
- * Projects a raw database profile onto the public field whitelist.
- * Strips `hasLikedCurrentUser` and parses JSON interests.
- */
-export function toPublicProfile(profile: {
+export interface BaseProfileInput {
   id: string;
   name: string;
   age: number;
@@ -35,17 +31,26 @@ export function toPublicProfile(profile: {
   bio: string;
   city: string;
   college: string;
-  interests: string;
-  [key: string]: unknown;
-}): PublicProfile {
+  interests: string | string[];
+}
+
+/**
+ * Projects a raw database or static profile onto the public field whitelist.
+ * Strips `hasLikedCurrentUser` and parses JSON interests.
+ */
+export function toPublicProfile(profile: BaseProfileInput): PublicProfile {
   let parsedInterests: string[] = [];
-  try {
-    parsedInterests = JSON.parse(profile.interests);
-    if (!Array.isArray(parsedInterests)) {
+  if (Array.isArray(profile.interests)) {
+    parsedInterests = profile.interests;
+  } else if (typeof profile.interests === "string") {
+    try {
+      const parsed = JSON.parse(profile.interests);
+      if (Array.isArray(parsed)) {
+        parsedInterests = parsed;
+      }
+    } catch {
       parsedInterests = [];
     }
-  } catch {
-    parsedInterests = [];
   }
 
   return {

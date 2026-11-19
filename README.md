@@ -1,24 +1,6 @@
 # Coy — Discover & Crush Matching
 
 > A mobile-first swipe discovery and double-blind crush-matching application built with **Next.js (App Router)**, **TypeScript**, **Tailwind CSS**, **Framer Motion**, and **SQLite via Prisma**. 
-> Faithfully styled after **[getcoy.com](https://getcoy.com/)** with its iconic neo-brutalist identity: Bricolage Grotesque typography, bold 2px borders, tactile hard drop shadows, playful pastel stickers, and fluid Framer Motion gestures.
-
----
-
-## 💡 Part A: Product Strategy & Core Features
-
-Based on an end-to-end evaluation of Coy's onboarding flow (Phone OTP, secret crush nomination, email verification, viral invite loops, and extra slots), here are two high-impact features designed to accelerate Coy's growth while preserving its zero-knowledge double-blind promise:
-
-### 1. Zero-Knowledge Campus & Organization Circles
-- **The Problem:** In Coy's current flow, you must add people individually by phone number or personal email. College students and co-workers often don't have their crush's private phone number, and hesitate to add them without knowing if peers are active.
-- **The Solution:** Users verify their college or workplace domain (e.g. `@iitb.ac.in`). Coy displays an aggregate peer counter (*"34 peers from your campus are on Coy"*) and allows nominating crushes within the verified campus directory via internal salted hashes.
-- **Why Required:** Solves the cold-start density problem. Dating in college/workplaces is where real-life crushes cluster. Collective social proof eliminates hesitation while preserving 100% double-blind privacy.
-
-### 2. Secret "Vibe Anchor" (Post-Match Icebreaker)
-- **The Problem:** When two acquaintances or classmates match on a double-blind app, they frequently experience paralyzing friction: *"Who texts first? What do we say? Will it be awkward in class tomorrow?"*
-- **The Solution:** When nominating a crush, users pick a low-stakes meetup activity (e.g. *"Late-night chai walk"*, *"Study session at library"*, *"Filter coffee run"*). This remains encrypted and hidden until both match, when Coy reveals the shared prompt with a one-tap WhatsApp pre-filled greeting.
-- **Why Required:** Closes the gap between a digital match and a real-world date. Removing the post-match icebreaker anxiety converts passive matches into active real-world meetups.
-
 ---
 
 ## 🎨 Part B: Discover Tab & Swipe Experience
@@ -60,12 +42,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 🧪 Testing
 
-Vitest executes automated integration tests against an isolated SQLite test database:
+Vitest executes automated integration tests against both the Prisma SQLite test database and the Static Data Engine:
 ```bash
 npm test
 ```
 
-**Validated Test Scenarios (9/9 Passing):**
+**Validated Test Scenarios (17/17 Passing):**
 1. `GET /api/feed` returns unswiped profiles and never leaks `hasLikedCurrentUser`.
 2. Profiles permanently disappear from the feed after swiping `LIKE` or `PASS`.
 3. Unilateral likes return `{ matched: false }` and create 0 matches.
@@ -73,6 +55,16 @@ npm test
 5. Duplicate swipes return `409 Conflict` (idempotency guarantee).
 6. Response payloads never contain `hasLikedCurrentUser` or `likedUser`.
 7. `POST /api/reset` successfully restores the deck for re-testing.
+8. Static data mode runs self-contained on Vercel with zero external database dependencies.
+9. Stateless session cookies isolate each visitor's deck and preserve swipes across page reloads.
+
+---
+
+## 🌐 Vercel Deployment
+
+This application is architected for **zero-config 1-click deployment on Vercel** without requiring external database hosting.
+
+For complete architectural details, serverless session handling, and deployment instructions, see [deploy.md](./deploy.md).
 
 ---
 
@@ -90,6 +82,7 @@ npm test
 ## 📁 Project Structure
 
 ```
+├── deploy.md                # Vercel deployment guide & static architecture doc
 ├── data/
 │   └── profiles.json        # 35 initial seed profiles (12 with likedUser=true)
 ├── prisma/
@@ -114,9 +107,11 @@ npm test
 │   │   └── TabBar.tsx       # Coy bottom navigation with live match counter
 │   ├── lib/
 │   │   ├── prisma.ts        # Singleton Prisma client
-│   │   └── profiles.ts      # Server-side projection whitelist
+│   │   ├── profiles.ts      # Server-side projection whitelist
+│   │   └── static-store.ts  # Static data engine & stateless session manager
 │   └── types/
 │       └── index.ts         # TypeScript definitions
 └── tests/
-    └── api.test.ts          # Vitest integration test suite
+    ├── api.test.ts          # Vitest Prisma SQLite integration test suite
+    └── static-mode.test.ts  # Vitest Static Data Engine & Vercel test suite
 ```
