@@ -62,9 +62,7 @@ npm test
 
 ## 🌐 Vercel Deployment
 
-This application is architected for **zero-config 1-click deployment on Vercel** without requiring external database hosting.
-
-For complete architectural details, serverless session handling, and deployment instructions, see [deploy.md](./deploy.md).
+This application is architected for **zero-config 1-click deployment on Vercel** using its built-in static data engine without requiring external database hosting.
 
 ---
 
@@ -82,7 +80,6 @@ For complete architectural details, serverless session handling, and deployment 
 ## 📁 Project Structure
 
 ```
-├── deploy.md                # Vercel deployment guide & static architecture doc
 ├── data/
 │   └── profiles.json        # 35 initial seed profiles (12 with likedUser=true)
 ├── prisma/
